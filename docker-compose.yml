@@ -1,0 +1,21 @@
+# Local run of the full stack: API + Redis.
+#   docker compose up --build
+#   curl localhost:3000/health
+services:
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./app
+    ports:
+      - "3000:3000"
+    environment:
+      REDIS_URL: redis://redis:6379
+      CACHE_ENABLED: "true"
+      SLOW_STORE_DELAY_MS: "50"
+      REC_ROUNDS: "200"
+      FLASH_STOCK: "1000000"
+    depends_on:
+      - redis
