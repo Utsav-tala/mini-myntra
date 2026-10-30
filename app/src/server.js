@@ -6,12 +6,21 @@ const { createSlowStore } = require('./store');
 const PORT = Number(process.env.PORT) || 3000;
 const CACHE_ENABLED = process.env.CACHE_ENABLED !== 'false';
 const SLOW_STORE_DELAY_MS = Number(process.env.SLOW_STORE_DELAY_MS) || 50;
+// Scoring passes per recommendation request; raise it to make each
+// request heavier on CPU.
+const REC_ROUNDS = Number(process.env.REC_ROUNDS) || 200;
 
 async function main() {
   const instanceId = await getInstanceId();
   const redis = createRedis();
   const store = createSlowStore({ delayMs: SLOW_STORE_DELAY_MS });
-  const app = createApp({ instanceId, redis, store, cacheEnabled: CACHE_ENABLED });
+  const app = createApp({
+    instanceId,
+    redis,
+    store,
+    cacheEnabled: CACHE_ENABLED,
+    recRounds: REC_ROUNDS,
+  });
 
   const server = app.listen(PORT, () => {
     console.log(
