@@ -1,6 +1,7 @@
 const express = require('express');
 const { productsRouter } = require('./routes/products');
 const { recommendationsRouter } = require('./routes/recommendations');
+const { checkoutRouter } = require('./routes/checkout');
 
 function createApp({ instanceId, redis = null, store, cacheEnabled = true, recRounds = 200 }) {
   const app = express();
@@ -22,6 +23,7 @@ function createApp({ instanceId, redis = null, store, cacheEnabled = true, recRo
 
   app.use('/api/products', productsRouter({ redis, store, cacheEnabled }));
   app.use('/api/recommendations', recommendationsRouter({ rounds: recRounds }));
+  app.use('/api', checkoutRouter({ redis }));
 
   app.use((req, res) => {
     res.status(404).json({ error: 'not found' });
