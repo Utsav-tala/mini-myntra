@@ -1,0 +1,12 @@
+node_modules/
+coverage/
+.env
+*.log
+.DS_Store
+
+# AWS credentials and local deploy outputs
+.aws/
+infra/*.outputs.json
+
+# Large raw load-test dumps (summaries are committed)
+loadtest/out/
