@@ -1,0 +1,16 @@
+{
+  "name": "mini-myntra-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Flash-sale API for the IT457 Myntra scaling PoC",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "4.21.2"
+  }
+}
