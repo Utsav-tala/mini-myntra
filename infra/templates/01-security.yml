@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Mini-Myntra security groups. Only the load balancer is open to the
+  internet; app servers accept traffic only from it, and Redis only from
+  the app servers. Security groups are free, so this stack can stay up.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to use (the region's default VPC)
+
+Resources:
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Mini-Myntra load balancer, HTTP from anywhere
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: mini-myntra-alb
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Mini-Myntra app servers, port 3000 from the load balancer only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+      Tags:
+        - Key: Name
+          Value: mini-myntra-app
+
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Mini-Myntra Redis, port 6379 from the app servers only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: mini-myntra-redis
+
+  # The k6 load generator needs no inbound access at all: it is reached
+  # through Session Manager and only makes outbound requests.
+  LoadGenSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Mini-Myntra k6 load generator, no inbound access
+      VpcId: !Ref VpcId
+      Tags:
+        - Key: Name
+          Value: mini-myntra-loadgen
+
+Outputs:
+  AlbSecurityGroupId:
+    Value: !Ref AlbSecurityGroup
+    Export:
+      Name: mini-myntra-alb-sg
+  AppSecurityGroupId:
+    Value: !Ref AppSecurityGroup
+    Export:
+      Name: mini-myntra-app-sg
+  RedisSecurityGroupId:
+    Value: !Ref RedisSecurityGroup
+    Export:
+      Name: mini-myntra-redis-sg
+  LoadGenSecurityGroupId:
+    Value: !Ref LoadGenSecurityGroup
+    Export:
+      Name: mini-myntra-loadgen-sg
