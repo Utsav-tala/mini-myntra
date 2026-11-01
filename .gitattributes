@@ -1,0 +1,4 @@
+# Shell scripts and k6 profiles run on Linux (EC2) and macOS; keep LF line endings even
+# when committed from Windows.
+*.sh text eol=lf
+*.env text eol=lf
