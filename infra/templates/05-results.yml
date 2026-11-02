@@ -1,0 +1,28 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Mini-Myntra results bucket: private S3 storage for k6 results copied off
+  the load generator. Stays up between sessions (storage for a few MB of
+  results costs well under a cent per month).
+
+Resources:
+  ResultsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub mini-myntra-results-${AWS::AccountId}
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+Outputs:
+  ResultsBucketName:
+    Value: !Ref ResultsBucket
+    Export:
+      Name: mini-myntra-results-bucket
+  ResultsBucketArn:
+    Value: !GetAtt ResultsBucket.Arn
+    Export:
+      Name: mini-myntra-results-bucket-arn

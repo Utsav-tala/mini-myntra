@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Mini-Myntra k6 load generator: one t3.small in the same region as the
+  app, so tests are not limited by home internet. Reached through Session
+  Manager (no SSH). Writes results to the results bucket (05-results.yml).
+  Billed per hour while it exists; deleted by teardown.sh.
+
+Parameters:
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  InstanceType:
+    Type: String
+    Default: t3.small
+  RepoUrl:
+    Type: String
+    Default: https://github.com/Utsav-tala/mini-myntra.git
+
+Resources:
+  LoadGenRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: write-results
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource: !Sub
+                  - ${Arn}/*
+                  - Arn: !ImportValue mini-myntra-results-bucket-arn
+
+  LoadGenProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref LoadGenRole
+
+  LoadGen:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref SubnetId
+      IamInstanceProfile: !Ref LoadGenProfile
+      SecurityGroupIds:
+        - !ImportValue mini-myntra-loadgen-sg
+      CreditSpecification:
+        CPUCredits: unlimited
+      Tags:
+        - Key: Name
+          Value: mini-myntra-loadgen
+      # Installs k6 and git, clones the repo to /opt/mini-myntra and records
+      # the results bucket for loadtest/run.sh.
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            set -euxo pipefail
+            exec > >(tee -a /var/log/mini-myntra-loadgen.log) 2>&1
+            dnf install -y git awscli-2 https://dl.k6.io/rpm/repo.rpm
+            dnf install -y k6
+            git clone ${RepoUrl} /opt/mini-myntra
+            chmod -R a+rwX /opt/mini-myntra
+            echo "RESULTS_BUCKET=${Bucket}" > /etc/mini-myntra.env
+            echo "loadgen ready $(date -Is)"
+          - Bucket: !ImportValue mini-myntra-results-bucket
+
+Outputs:
+  InstanceId:
+    Value: !Ref LoadGen
