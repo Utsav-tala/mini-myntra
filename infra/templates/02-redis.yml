@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Mini-Myntra Redis on ElastiCache: one small node shared by every app
+  server, holding the product cache and the flash-sale stock count (the
+  role Redis plays in Myntra's pricing system). Billed per hour; deleted by
+  teardown.sh.
+
+Parameters:
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for the cache (the same two zones as the app servers)
+  NodeType:
+    Type: String
+    Default: cache.t4g.micro
+    AllowedValues: [cache.t4g.micro, cache.t3.micro]
+    Description: Smallest Redis node types
+
+Resources:
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Mini-Myntra Redis subnets
+      SubnetIds: !Ref SubnetIds
+
+  Redis:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      ClusterName: mini-myntra-redis
+      Engine: redis
+      EngineVersion: "7.1"
+      CacheNodeType: !Ref NodeType
+      NumCacheNodes: 1
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      VpcSecurityGroupIds:
+        - !ImportValue mini-myntra-redis-sg
+      Tags:
+        - Key: Name
+          Value: mini-myntra-redis
+
+Outputs:
+  RedisHost:
+    Value: !GetAtt Redis.RedisEndpoint.Address
+    Export:
+      Name: mini-myntra-redis-host
+  RedisPort:
+    Value: !GetAtt Redis.RedisEndpoint.Port
