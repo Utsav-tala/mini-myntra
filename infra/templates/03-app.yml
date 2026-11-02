@@ -1,0 +1,182 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Mini-Myntra app tier: an internet-facing Application Load Balancer in
+  front of an Auto Scaling Group of t3.micro instances across two zones.
+  A target tracking policy keeps average CPU near the target (50%),
+  adding instances during a sale spike and removing them afterwards.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Two public subnets in different Availability Zones
+  UserDataBase64:
+    Type: String
+    NoEcho: true
+    Description: infra/user-data.sh with placeholders filled, base64-encoded (deploy.sh builds it)
+  ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+    Description: Latest Amazon Linux 2023 AMI, looked up at deploy time
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  MinSize:
+    Type: Number
+    Default: 1
+  MaxSize:
+    Type: Number
+    Default: 4
+  DesiredCapacity:
+    Type: Number
+    Default: 1
+  CpuTarget:
+    Type: Number
+    Default: 50
+    Description: Average CPU percent the group aims to hold
+
+Resources:
+  # Lets instances be reached through Session Manager (no SSH keys or
+  # open ports needed).
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: mini-myntra-app
+      LaunchTemplateData:
+        ImageId: !Ref ImageId
+        InstanceType: !Ref InstanceType
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
+        SecurityGroupIds:
+          - !ImportValue mini-myntra-app-sg
+        UserData: !Ref UserDataBase64
+        # 1-minute CloudWatch metrics so scaling reacts faster.
+        Monitoring:
+          Enabled: true
+        # Unlimited credits: a t3 under sustained load is not throttled
+        # down to its baseline mid-experiment.
+        CreditSpecification:
+          CpuCredits: unlimited
+        # IMDSv2 only. Hop limit 2 lets the API inside its Docker
+        # container read the instance ID.
+        MetadataOptions:
+          HttpTokens: required
+          HttpPutResponseHopLimit: 2
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: mini-myntra-app
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: mini-myntra-alb
+      Type: application
+      Scheme: internet-facing
+      Subnets: !Ref SubnetIds
+      SecurityGroups:
+        - !ImportValue mini-myntra-alb-sg
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: mini-myntra-app
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: 3000
+      TargetType: instance
+      HealthCheckPath: /health
+      HealthCheckIntervalSeconds: 10
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 2
+      TargetGroupAttributes:
+        # Finish in-flight requests for 30s when an instance is removed
+        # (the default is 300s, which slows scale-in a lot).
+        - Key: deregistration_delay.timeout_seconds
+          Value: "30"
+
+  Listener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: HTTP
+      Port: 80
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: mini-myntra-asg
+      VPCZoneIdentifier: !Ref SubnetIds
+      LaunchTemplate:
+        LaunchTemplateId: !Ref LaunchTemplate
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+      MinSize: !Ref MinSize
+      MaxSize: !Ref MaxSize
+      DesiredCapacity: !Ref DesiredCapacity
+      TargetGroupARNs:
+        - !Ref TargetGroup
+      # Replace an instance when the load balancer marks it unhealthy,
+      # not only when EC2 says it is down.
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 120
+      # A new instance's CPU is ignored for 90s while Docker starts.
+      DefaultInstanceWarmup: 90
+      # Free 1-minute group metrics (instance counts) for the dashboard.
+      MetricsCollection:
+        - Granularity: 1Minute
+      Tags:
+        - Key: Project
+          Value: mini-myntra
+          PropagateAtLaunch: true
+
+  CpuTargetTracking:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: !Ref CpuTarget
+
+Outputs:
+  LoadBalancerUrl:
+    Description: The live URL
+    Value: !Sub http://${LoadBalancer.DNSName}
+  AutoScalingGroupName:
+    Value: !Ref AutoScalingGroup
+    Export:
+      Name: mini-myntra-asg-name
+  LoadBalancerFullName:
+    Value: !GetAtt LoadBalancer.LoadBalancerFullName
+    Export:
+      Name: mini-myntra-alb-fullname
+  TargetGroupFullName:
+    Value: !GetAtt TargetGroup.TargetGroupFullName
+    Export:
+      Name: mini-myntra-tg-fullname
