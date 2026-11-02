@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Mini-Myntra CloudWatch dashboard: the evidence for each experiment on one
+  screen. CPU against the 50% target, instances in service, requests,
+  response time and healthy hosts, all at 1-minute resolution. One custom
+  dashboard is within CloudWatch's free allowance of three.
+
+Resources:
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: mini-myntra
+      DashboardBody: !Sub
+        - |
+          {
+            "start": "-PT1H",
+            "periodOverride": "inherit",
+            "widgets": [
+              {
+                "type": "metric", "x": 0, "y": 0, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Average CPU (%) vs 50% target",
+                  "region": "${AWS::Region}", "view": "timeSeries", "stat": "Average", "period": 60,
+                  "metrics": [
+                    [ "AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "${Asg}" ]
+                  ],
+                  "yAxis": { "left": { "min": 0, "max": 100 } },
+                  "annotations": { "horizontal": [ { "label": "Scaling target", "value": 50 } ] }
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 0, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Instances in service",
+                  "region": "${AWS::Region}", "view": "timeSeries", "stat": "Maximum", "period": 60,
+                  "metrics": [
+                    [ "AWS/AutoScaling", "GroupInServiceInstances", "AutoScalingGroupName", "${Asg}", { "label": "In service" } ],
+                    [ "AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", "${Asg}", { "label": "Desired" } ]
+                  ],
+                  "yAxis": { "left": { "min": 0, "max": 5 } }
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 6, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Requests per minute",
+                  "region": "${AWS::Region}", "view": "timeSeries", "stat": "Sum", "period": 60,
+                  "metrics": [
+                    [ "AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${Alb}" ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 6, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Target response time (seconds)",
+                  "region": "${AWS::Region}", "view": "timeSeries", "period": 60,
+                  "metrics": [
+                    [ "AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${Alb}", { "stat": "p95", "label": "p95" } ],
+                    [ "AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${Alb}", { "stat": "Average", "label": "average" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 0, "y": 12, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Healthy and unhealthy targets",
+                  "region": "${AWS::Region}", "view": "timeSeries", "stat": "Minimum", "period": 60,
+                  "metrics": [
+                    [ "AWS/ApplicationELB", "HealthyHostCount", "TargetGroup", "${Tg}", "LoadBalancer", "${Alb}", { "label": "Healthy" } ],
+                    [ "AWS/ApplicationELB", "UnHealthyHostCount", "TargetGroup", "${Tg}", "LoadBalancer", "${Alb}", { "label": "Unhealthy", "stat": "Maximum" } ]
+                  ]
+                }
+              },
+              {
+                "type": "metric", "x": 12, "y": 12, "width": 12, "height": 6,
+                "properties": {
+                  "title": "Errors per minute",
+                  "region": "${AWS::Region}", "view": "timeSeries", "stat": "Sum", "period": 60,
+                  "metrics": [
+                    [ "AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "LoadBalancer", "${Alb}", { "label": "App 5xx" } ],
+                    [ "AWS/ApplicationELB", "HTTPCode_ELB_5XX_Count", "LoadBalancer", "${Alb}", { "label": "Load balancer 5xx" } ]
+                  ]
+                }
+              }
+            ]
+          }
+        - Asg: !ImportValue mini-myntra-asg-name
+          Alb: !ImportValue mini-myntra-alb-fullname
+          Tg: !ImportValue mini-myntra-tg-fullname
+
+Outputs:
+  DashboardUrl:
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=mini-myntra
