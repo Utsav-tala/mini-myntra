@@ -2,6 +2,7 @@ const express = require('express');
 const { productsRouter } = require('./routes/products');
 const { recommendationsRouter } = require('./routes/recommendations');
 const { checkoutRouter } = require('./routes/checkout');
+const { homeRouter } = require('./routes/home');
 
 function createApp({ instanceId, redis = null, store, cacheEnabled = true, recRounds = 200 }) {
   const app = express();
@@ -21,6 +22,7 @@ function createApp({ instanceId, redis = null, store, cacheEnabled = true, recRo
     res.json({ status: 'ok', instanceId, uptimeSeconds: Math.round(process.uptime()) });
   });
 
+  app.use('/', homeRouter({ instanceId, redis }));
   app.use('/api/products', productsRouter({ redis, store, cacheEnabled }));
   app.use('/api/recommendations', recommendationsRouter({ rounds: recRounds }));
   app.use('/api', checkoutRouter({ redis }));

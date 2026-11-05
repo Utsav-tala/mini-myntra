@@ -24,4 +24,12 @@ A small Node.js flash-sale API runs on EC2 behind an Application Load Balancer. 
 
 ## Live URL
 
-Added after the first deployment.
+http://mini-myntra-alb-1709632823.ap-south-1.elb.amazonaws.com/ (first deployed 5 Nov 2026)
+
+Use `http://`, not `https://`. The stack is torn down between work sessions to save cost, and each new deployment gets a new load balancer address. To print the current one:
+
+```bash
+aws cloudformation describe-stacks --region ap-south-1 --stack-name mini-myntra-app --query "Stacks[0].Outputs[?OutputKey=='LoadBalancerUrl'].OutputValue" --output text
+```
+
+How to deploy, check, update and tear down: [docs/RUNBOOK.md](docs/RUNBOOK.md).

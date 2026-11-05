@@ -4,6 +4,7 @@ Node.js flash-sale API. Each endpoint stands in for one Myntra service from the 
 
 | Endpoint | Stands in for | Notes |
 | --- | --- | --- |
+| `GET /` | Live URL landing page | HTML: status, which instance answered, links to the endpoints |
 | `GET /health` | ALB health check | Returns the EC2 instance ID; never touches Redis |
 | `GET /api/products/:id` | Pricing system | Redis cache-aside over a slow store (`SLOW_STORE_DELAY_MS`) |
 | `GET /api/recommendations/:userId` | Personalization | CPU-heavy scoring (`REC_ROUNDS`) that drives autoscaling |
