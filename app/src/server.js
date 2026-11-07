@@ -1,3 +1,5 @@
+const cluster = require('cluster');
+const os = require('os');
 const { createApp } = require('./app');
 const { getInstanceId } = require('./instance');
 const { createRedis } = require('./redis');
@@ -44,4 +46,32 @@ async function main() {
   });
 }
 
-main();
+// Node runs JavaScript on one thread, so on a 2-vCPU t3.micro a single
+// process can only push instance CPU to about 50%: right at the scaling
+// target. One worker per vCPU lets the whole instance saturate, so the
+// CPU metric the Auto Scaling Group watches reflects real load. The
+// workers share port 3000.
+const WORKERS = Number(process.env.WORKERS) || os.availableParallelism();
+
+if (cluster.isPrimary && WORKERS > 1) {
+  let stopping = false;
+  console.log(`starting ${WORKERS} workers`);
+  for (let i = 0; i < WORKERS; i++) cluster.fork();
+
+  cluster.on('exit', (worker, code) => {
+    if (stopping) return;
+    console.log(`worker ${worker.process.pid} exited (${code}), restarting`);
+    cluster.fork();
+  });
+
+  process.on('SIGTERM', () => {
+    stopping = true;
+    for (const worker of Object.values(cluster.workers)) worker.process.kill('SIGTERM');
+    // Exit once every worker has finished its in-flight requests.
+    cluster.on('exit', () => {
+      if (Object.keys(cluster.workers).length === 0) process.exit(0);
+    });
+  });
+} else {
+  main();
+}

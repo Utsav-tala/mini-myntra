@@ -37,3 +37,4 @@ cd app && npm install && npm start
 | `SLOW_STORE_DELAY_MS` | `50` | Simulated database latency |
 | `REC_ROUNDS` | `200` | Scoring passes per recommendation request |
 | `FLASH_STOCK` | `1000000` | Flash-deal stock set on first boot |
+| `WORKERS` | number of vCPUs | Node processes per server; `1` disables clustering. One per vCPU lets a 2-vCPU t3.micro use its whole CPU |
