@@ -1,0 +1,7 @@
+Experiment,Peak users,Peak req/s,Max instances,Server p95 at peak (ms),Client p95 at peak (ms),Failed,Failed %,Instance-minutes,Est. $/hour at peak,Est. $ per million requests
+"E1: one server, load in steps",500,668.1,1.0,345.5,344.7,40,0.0066,22.0,0.074,0.045
+E3: four fixed servers,500,989.1,4.0,8.2,9.6,0,0.0,96.0,0.1342,0.065
+E2: autoscaling 1 to 4,500,886.2,4.0,125.9,126.8,27,0.0035,101.0,0.1161,0.083
+E6: server killed at peak,500,674.5,4.0,381.6,396.6,2067,0.5149,40.0,0.0961,0.071
+"E4a: cache on, product reads",50,246.1,1.0,2.0,3.0,0,0.0,6.0,0.074,0.096
+"E4b: cache off, product reads",50,197.8,2.0,52.0,52.8,0,0.0,7.0,0.074,0.139
