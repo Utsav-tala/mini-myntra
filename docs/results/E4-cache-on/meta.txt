@@ -1,0 +1,10 @@
+profile=E4
+base_url=http://mini-myntra-alb-1184271129.ap-south-1.elb.amazonaws.com
+started_utc=20261115T102221Z
+SHAPE=steady
+VUS=50
+DURATION=5m
+MIX=products:100
+THINK_MS=200
+finished_utc=20261115T102751Z
+k6_exit=0

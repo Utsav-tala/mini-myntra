@@ -1,0 +1,14 @@
+profile=E6
+base_url=http://mini-myntra-alb-1184271129.ap-south-1.elb.amazonaws.com
+started_utc=20261115T114357Z
+SHAPE=sale
+WARM_VUS=20
+PEAK_VUS=500
+WARM=2m
+RAMP=1m
+HOLD=8m
+DOWN=1m
+COOL=3m
+THINK_MS=500
+finished_utc=20261115T115928Z
+k6_exit=0
