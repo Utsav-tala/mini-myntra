@@ -1,0 +1,31 @@
+{
+  "label": "E3: four fixed servers",
+  "profile": "E3",
+  "started_utc": "2026-11-15T10:35:58+00:00",
+  "finished_utc": "2026-11-15T10:59:30+00:00",
+  "total_requests": 824699,
+  "failed_requests": 0,
+  "failed_pct": 0.0,
+  "client_p95_ms_overall": 9.4,
+  "max_vus": 500,
+  "peak_minutes": 11,
+  "peak_rps": 989.1,
+  "peak_client_p95_ms": 9.6,
+  "peak_server_p95_ms": 8.2,
+  "peak_server_avg_ms": 3.7,
+  "peak_cpu_pct": 28.6,
+  "peak_instances": 4.0,
+  "max_instances": 4.0,
+  "instance_minutes": 96.0,
+  "est_cost_usd_run": 0.0537,
+  "est_cost_usd_per_hour_at_peak": 0.1342,
+  "est_cost_usd_per_million_requests": 0.065,
+  "requests_by_instance": {
+    "i-05c5b3ad48ce68f8f": 206175,
+    "i-09b4ece2c1daa3246": 206176,
+    "i-021b905020536b8fb": 206173,
+    "i-016c7dc179f2be0bc": 206175
+  },
+  "peak_server_p95_first_ms": 8.2,
+  "peak_server_p95_last_ms": 8.4
+}
