@@ -9,8 +9,24 @@ AWS setup for Mini-Myntra in ap-south-1 (Mumbai), as CloudFormation stacks. Each
 | `mini-myntra-redis` | `templates/02-redis.yml` | ElastiCache Redis, one cache.t4g.micro node | Yes |
 | `mini-myntra-app` | `templates/03-app.yml` | Load balancer, launch template, Auto Scaling Group (1 to 4 t3.micro, CPU target 50%) | Yes |
 | `mini-myntra-monitoring` | `templates/04-monitoring.yml` | CloudWatch dashboard | No (within free allowance) |
+| `mini-myntra-results` | `templates/05-results.yml` | Private S3 bucket for k6 results (kept between sessions) | No (a few MB) |
+| `mini-myntra-loadgen` | `templates/06-loadgen.yml` | k6 load generator EC2 (use `InstanceType=t3.medium`) | Yes |
+
+`deploy.sh` creates stacks 00–04; the results bucket and load generator are created only for experiments (see [`../loadtest/RUN-ON-AWS.md`](../loadtest/RUN-ON-AWS.md)). `teardown.sh` removes everything billed per hour.
 
 `user-data.sh` is the boot script each new instance runs: it installs Docker and starts the API image from Docker Hub.
+
+## How autoscaling is set up (`templates/03-app.yml`)
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| Instances | t3.micro, Amazon Linux 2023, min 1, max 4, two zones | Small servers saturate quickly, so scaling is visible |
+| Scaling policy | Target tracking, average CPU 50% | Keeps headroom while new servers boot |
+| Health check | Load balancer checks `/health` every 10 s; 2 passes to join | Only healthy servers receive traffic |
+| Warm-up / draining | 90 s instance warm-up; 30 s connection draining | New servers' boot CPU is ignored; leaving servers finish requests |
+| CPU credits | Unlimited | No throttling mid-experiment |
+| Monitoring | 1-minute detailed monitoring | Faster scaling decisions |
+| Metadata | IMDSv2 only, hop limit 2 | Lets the app in Docker read its instance ID |
 
 ## Before the first deploy
 

@@ -34,3 +34,22 @@ All settings are passed as `-e NAME=value`.
 ## What it reports
 
 Besides k6's usual latency percentiles, `requests_by_instance` counts responses per server (from the `X-Instance-Id` header), showing the load balancer spreading traffic as instances are added. A checkout answered `409 sold out` counts as a valid response.
+
+## Experiments (`run.sh` and `profiles/`)
+
+`run.sh` runs one experiment's profile and saves `summary.json`, `k6.csv.gz` and `meta.txt` under `loadtest/out/` (and to the S3 results bucket when run on the AWS load generator):
+
+```bash
+bash loadtest/run.sh E2 http://<load-balancer-url>
+```
+
+| Profile | Experiment | Shape | Deploy with |
+| --- | --- | --- | --- |
+| `E1.env` | One server's breaking point | step: +50 users every 2 min to 500 | `MIN_SIZE=1 MAX_SIZE=1` |
+| `E2.env` | Autoscaling during a sale (main) | sale, peak 500, 12 min hold | defaults (1–4) |
+| `E3.env` | Four fixed servers | sale, peak 500 | `MIN_SIZE=4 MAX_SIZE=4` |
+| `E4.env` | Cache on vs off | steady 50 users, product reads only | `MIN_SIZE=1 MAX_SIZE=2`, `CACHE_ENABLED=true` / `false` |
+| `E5.env` | Scheduled scale-out (not run) | sale | — |
+| `E6.env` | Server killed at the peak | sale, peak 500, 8 min hold | defaults; terminate one instance mid-peak |
+
+Running the experiments on AWS step by step: [RUN-ON-AWS.md](RUN-ON-AWS.md). Results: [`../docs/results/`](../docs/README.md).
